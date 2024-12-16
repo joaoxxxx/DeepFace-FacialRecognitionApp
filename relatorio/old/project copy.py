@@ -4,8 +4,6 @@ import os
 from tkinter import simpledialog, Tk, Button, Label
 from threading import Thread
 import time
-import win32gui
-import win32con
 
 
 class FacialRecognitionApp:
@@ -14,39 +12,14 @@ class FacialRecognitionApp:
         self.root.title("Reconhecimento Facial com DeepFace")
         self.root.geometry("300x200")
         self.root.iconbitmap("icon.ico")
-        self.root.configure(bg='#f0f0f0')
-
+        
         self.captura_status = False
-        self.status_label = None
         self.create_ui()
 
     def create_ui(self):
-        Button(self.root, 
-            text="Iniciar Captura", 
-            command=self.start_capture,
-            bg='#4CAF50',
-            fg='white',
-            relief='raised',
-            padx=10).pack(pady=10)
-
-        Label(self.root, 
-            text="Pressione 'Iniciar Captura' para começar\nPressione 'Esc' para sair",
-            bg='#f0f0f0',
-            fg='#333333').pack(pady=10)
-
-        Button(self.root, 
-            text="Iniciar Reconhecimento (DeepFace)", 
-            command=self.start_recognition,
-            bg='#2196F3',
-            fg='white',
-            relief='raised',
-            padx=10).pack(pady=10)
-
-        self.status_label = Label(self.root, 
-            text="",
-            bg='#f0f0f0',
-            fg='#333333')
-        self.status_label.pack(pady=5)
+        Button(self.root, text="Iniciar Captura", command=self.start_capture).pack(pady=10)
+        Label(self.root, text="Pressione 'Iniciar Captura' para começar\nPressione 'Esc' para sair").pack(pady=10)
+        Button(self.root, text="Iniciar Reconhecimento (DeepFace)", command=self.start_recognition).pack(pady=10)
 
     def start_capture(self):
         self.captura_status = True
@@ -69,23 +42,8 @@ class FacialRecognitionApp:
         cam = cv2.VideoCapture(0)
         cv2.namedWindow("Captura")
         img_counter = 0
-        prev_time = time.time()
-        
-        hwnd = win32gui.FindWindow(None, "Captura")
-        icon = win32gui.LoadImage(
-            0, "icon.ico", win32con.IMAGE_ICON,
-            0, 0, win32con.LR_LOADFROMFILE
-        )
-        if hwnd:
-            win32gui.SendMessage(
-                hwnd, win32con.WM_SETICON,
-                win32con.ICON_SMALL, icon
-            )
-            win32gui.SendMessage(
-                hwnd, win32con.WM_SETICON,
-                win32con.ICON_BIG, icon
-            )
-        
+        prev_time = time.time() 
+
         try:
             while self.captura_status:
                 ret, frame = cam.read()
@@ -93,13 +51,12 @@ class FacialRecognitionApp:
                     print("Falha ao capturar frame")
                     break
 
-
                 current_time = time.time()
                 fps = 1 / (current_time - prev_time)
                 prev_time = current_time
 
                 cv2.putText(frame, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                    1, (0, 255, 0), 2, cv2.LINE_AA)
+                            1, (0, 255, 0), 2, cv2.LINE_AA)
                             
                 cv2.imshow("Captura", frame)
                 key = cv2.waitKey(1)
@@ -115,16 +72,37 @@ class FacialRecognitionApp:
             cv2.destroyAllWindows()
 
     def start_recognition(self):
-        self.status_label.config(text="Reconhecimento em andamento...", fg="green")
+        self.root.destroy()  
         recognition_thread = Thread(target=self.run_deepface)
         recognition_thread.start()
 
     def run_deepface(self):
         try:
             print("Iniciando reconhecimento facial com DeepFace...")
-            DeepFace.stream("db", model_name="VGG-Face",enable_face_analysis=False)
-        except Exception as e:
-            print(f"Erro durante reconhecimento: {e}")
+            cam = cv2.VideoCapture(0)
+            while True:
+                ret, frame = cam.read()
+                if not ret:
+                    print("Falha ao capturar frame")
+                    break
+
+                try:
+                    # Realizar reconhecimento com DeepFace
+                    result = DeepFace.find(frame, db_path="db", enforce_detection=False, silent=True)
+                    if len(result) > 0:
+                        print("Usuário reconhecido!")
+                    else:
+                        print("Usuário não reconhecido!")
+                except Exception as e:
+                    print(f"Erro: {e}")
+
+                # Mostrar frame com status
+                cv2.imshow("Reconhecimento Facial", frame)
+                if cv2.waitKey(1) % 256 == 27:  # ESC
+                    break
+        finally:
+            cam.release()
+            cv2.destroyAllWindows()
 
     def run(self):
         self.root.mainloop()
