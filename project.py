@@ -122,7 +122,7 @@ class FacialRecognitionApp:
     def run_deepface(self):
         try:
             print("Iniciando reconhecimento facial com DeepFace...")
-            DeepFace.stream("db", model_name="VGG-Face",enable_face_analysis=False)
+            DeepFace.stream("db", model_name="VGG-Face",enable_face_analysis=True)
         except Exception as e:
             print(f"Erro durante reconhecimento: {e}")
 
